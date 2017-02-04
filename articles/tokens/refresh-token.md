@@ -93,24 +93,39 @@ Obtaining new tokens using the `refresh_token` should occur only if the `id_toke
 
 ## Revoke a Refresh Token
 
-Since refresh tokens never expire, it is important to be able to revoke them.
+Because refresh tokens never expire, you need to manually implement token revocation to prevent them from persisting.
 
-### Revoke a Refresh Token using the Management API
+### Revoke a Refresh Token Using the Authentication API
 
-To revoke a refresh token using the Auth0 Management API, you need the `id` of the refresh token you wish to revoke. To obtain a list of existing refresh tokens, call the [List device credentials](/api/management/v2#!/Device_Credentials/get_device_credentials) endpoint, specifying `type=refresh_token` with an access token containing `read:device_credentials` scope. To narrow the results, you can also specify the `client_id` and `user_id` associated with the token, if known.
+You can revoke a refresh token using the [Auth0 Authentication API](/api/authentication), but you will first need to obtain the `id` of the token you want to revoke. You can access a list of existing refresh tokens using the [Auth0 Management API](/api/v2).
 
-```text
-GET https://${account.namespace}/api/v2/device-credentials?
-  type=refresh_token
-  &client_id={}
-  &user_id={}
+#### Obtain a List of Existing Refresh Tokens
 
+You can obtain a list of existing refresh tokens by calling the [List Device Credentials](/api/management/v2#!/Device_Credentials/get_device_credentials) endpoint and specifying `type=refresh_token`. You will need an access token with the `read:device_credentials` scope to call this endpoint.
+
+```har
 {
-  "Authorization":   "Bearer {your_access_token}"
+  "method": "GET",
+  "url": "https://${account.namespace}/api/v2/device-credentials?type=refresh_token",
+  "headers": [
+    { "name": "Authorization", "value": "Bearer YOUR_ACCESS_TOKEN" }
+  ]
 }
 ```
 
-Response body:
+To narrow the results returned, you can specify the `client_id` and `user_id` associated with the token.
+
+```har
+{
+  "method": "GET",
+  "url": "https://${account.namespace}/api/v2/device-credentials?type=refresh_token&client_id=CLIENT_ID&user_id=USER_ID",
+  "headers": [
+    { "name": "Authorization", "value": "Bearer YOUR_ACCESS_TOKEN" }
+  ]
+}
+```
+
+The response will contain the following:
 
 ```json
 [
@@ -121,18 +136,32 @@ Response body:
 ]
 ```
 
-To revoke a __refresh token__, call the [Delete a device credential](/api/management/v2#!/Device_Credentials/delete_device_credentials_by_id) endpoint with an access token containing `delete:device_credentials` scope and the value of `id` obtained above:
+#### Revoke the Refresh Token
 
-```text
-DELETE https://${account.namespace}/api/v2/device-credentials/{id}
-
-{
-  "Authorization":   "Bearer {your_access_token}"
-}
+You can revoke a **refresh token** by making the appropriate `POST` call to the `/oauth/revoke` endpoint. You will need the `id` of the refresh token, as well as the `client_id` and `client_secret` for the Client to which the token had been issued.
 
 ```
+{
+	"method": "POST",
+	"url": "https://${account.namespace}/oauth/revoke",
+	"httpVersion": "HTTP/1.1",
+	"cookies": [],
+	"headers": [{
+		"name": "Authorization",
+		"value": "Bearer YOUR_ACCESS_TOKEN"
+	}],
+	"queryString": [],
+	"postData": {
+		"mimeType": "application/json",
+		"text": "{\"client_id\": \"YOU_CLIENT_ID\", \"client_secret\": \"YOUR_CLIENT_SECRET\", \"token\": \"YOUR_REFRESH_TOKEN\" }"
+	},
+	"headersSize": -1,
+	"bodySize": -1,
+	"comment": ""
+}
+```
 
-The response will be a **204**: The credential no longer exists.
+If the identified refresh token was successfully deleted, you will receive an `HTTP 200` response.
 
 ### Revoke a Refresh Token in the Dashboard
 
